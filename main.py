@@ -16,8 +16,22 @@ moving_right = False
 moving_up = False
 moving_down = False
 
+
+# helped function to scale image
+def scale_image(image, scale):
+    width = image.get_width()
+    height = image.get_height()
+    return pygame.transform.scale(image, (width * scale, height * scale))
+
+animation_list = []
+for i in range(4):
+    image = pygame.image.load(f"assets/images/characters/elf/idle/{i}.png")
+    image.convert_alpha()
+    image = scale_image(image, SCALE)
+    animation_list.append(image)
+
 # create player
-player = Character(100, 100)
+player = Character(100, 100, animation_list)
 
 # main game loop
 run = True
@@ -42,6 +56,9 @@ while run:
 
     # move player
     player.move(dx, dy)
+
+    # update player
+    player.update()
 
     # draw player on screen
     player.draw(screen)
