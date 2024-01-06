@@ -4,14 +4,17 @@ from constants import *
 
 
 class Character:
-    def __init__(self, x, y, mob_animations, char_type):
+    def __init__(self, x, y, health, mob_animations, char_type):
         self.char_type = char_type
         self.flip = False
+        self.animation_list = mob_animations[char_type]
         self.frameIndex = 0
         self.action = 0  # 0-idle    1-run
         self.updateTime = pygame.time.get_ticks()
         self.running = False
-        self.animation_list = mob_animations[char_type]
+        self.health = health
+        self.alive = True
+
         self.image = self.animation_list[self.action][self.frameIndex]
         self.rect = pygame.Rect(0, 0, 40, 40)
         self.rect.center = (x, y)
@@ -33,6 +36,11 @@ class Character:
         self.rect.y += dy
 
     def update(self):
+        # check if character has died
+        if self.health <= 0:
+            self.health = 0
+            self.alive = False
+
         # check what action the player is performing
         if self.running == True:
             self.update_action(1)  # 1-run
@@ -62,7 +70,8 @@ class Character:
     def draw(self, screen):
         flipped_image = pygame.transform.flip(self.image, self.flip, False)
         if self.char_type == 0:
-            screen.blit(flipped_image, (self.rect.x, self.rect.y - OFFSET*SCALE))
+            screen.blit(flipped_image,
+                        (self.rect.x, self.rect.y - OFFSET * SCALE))
         else:
             screen.blit(flipped_image, self.rect)
         pygame.draw.rect(screen, RED, self.rect, 1)
