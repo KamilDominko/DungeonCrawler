@@ -3,6 +3,7 @@ import pygame
 from character import Character
 from items import Item
 from weapon import Weapon
+from world import World
 from constants import *
 
 pygame.init()
@@ -61,6 +62,14 @@ arrow_image = pygame.image.load(
     "assets/images/weapons/arrow.png").convert_alpha()
 arrow_image = scale_image(arrow_image, WEAPON_SCALE)
 
+# load tile map images
+tile_list = []
+for x in range(TILE_TYPES):
+    tile_image = pygame.image.load(f"assets/images/tiles/"
+                                   f"{x}.png").convert_alpha()
+    tile_image = pygame.transform.scale(tile_image, (TILE_SIZE, TILE_SIZE))
+    tile_list.append(tile_image)
+
 # load character images
 mob_animations = []
 mob_types = ["elf", "imp", "skeleton", "goblin", "muddy", "tiny_zombie",
@@ -99,6 +108,19 @@ def draw_info():
             screen.blit(heart_empty, (10 + i * 50, 0))
     # show score
     draw_text(f"X{player.score}", font, WHITE, SCREEN_WIDTH - 100, 15)
+
+
+world_data = [
+    [7, 7, 7, 7, 7, 7],
+    [7, 0, 1, 2, 0, 7],
+    [7, 3, 4, 5, 0, 7],
+    [7, 6, 6, 6, 0, 7],
+    [7, 6, 6, 6, 0, 7],
+    [7, 7, 0, 7, 7, 7],
+]
+
+world = World()
+world.process_data(world_data, tile_list)
 
 
 # function for outputting text onto the screen
@@ -143,7 +165,7 @@ damage_text_group = pygame.sprite.Group()
 arrow_group = pygame.sprite.Group()
 item_group = pygame.sprite.Group()
 
-score_coin = Item(SCREEN_WIDTH-115, 23, 0, coin_images)
+score_coin = Item(SCREEN_WIDTH - 115, 23, 0, coin_images)
 item_group.add(score_coin)
 
 potion = Item(200, 200, 1, [red_potion])
@@ -192,6 +214,7 @@ while run:
     item_group.update(player)
 
     # draw player on screen
+    world.draw(screen)
     for enemy in enemy_list:
         enemy.draw(screen)
     player.draw(screen)
