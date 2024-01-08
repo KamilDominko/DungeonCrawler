@@ -58,14 +58,14 @@ class Arrow(pygame.sprite.Sprite):
         self.dx = math.cos(math.radians(self.angle)) * ARROW_SPEED
         self.dy = -(math.sin(math.radians(self.angle)) * ARROW_SPEED)
 
-    def update(self, enemy_list):
+    def update(self, screen_scroll, enemy_list):
         # reset variables
         damage = 0
         damage_pos = None
 
         # reposition based on speed
-        self.rect.x += self.dx
-        self.rect.y += self.dy
+        self.rect.x += self.dx + screen_scroll[0]
+        self.rect.y += self.dy + screen_scroll[1]
 
         # check if arrow has gone off-screen
         if (self.rect.right < 0 or self.rect.left > SCREEN_WIDTH or
