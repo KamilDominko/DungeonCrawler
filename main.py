@@ -16,6 +16,7 @@ clock = pygame.time.Clock()
 
 # define game variables
 level = 1
+start_intro = True
 screen_scroll = [0, 0]
 
 # define player movement variables
@@ -69,6 +70,9 @@ bow_image = scale_image(bow_image, WEAPON_SCALE)
 arrow_image = pygame.image.load(
     "assets/images/weapons/arrow.png").convert_alpha()
 arrow_image = scale_image(arrow_image, WEAPON_SCALE)
+fireball_image = pygame.image.load(
+    "assets/images/weapons/fireball.png").convert_alpha()
+fireball_image = scale_image(fireball_image, FIREBALL_SCALE)
 
 # load tile map images
 tile_list = []
@@ -120,26 +124,25 @@ def draw_info():
     draw_text(f"X{player.score}", font, WHITE, SCREEN_WIDTH - 100, 15)
 
 
-# create empty tile list
-world_data = []
-for row in range(ROWS):
-    r = [-1] * COLS
-    world_data.append(r)
-# load level data and create wotld
-with open(f"levels/level{level}_data.csv", newline="") as csvfile:
-    reader = csv.reader(csvfile, delimiter=",")
-    for x, row in enumerate(reader):
-        for y, tile in enumerate(row):
-            world_data[x][y] = int(tile)
-
-world = World()
-world.process_data(world_data, tile_list, item_images, mob_animations)
-
-
 # function for outputting text onto the screen
 def draw_text(text, font, text_col, x, y):
     img = font.render(text, True, text_col)
     screen.blit(img, (x, y))
+
+
+# function to reset level
+def reset_level():
+    damage_text_group.empty()
+    arrow_group.empty()
+    item_group.empty()
+    fireball_group.empty()
+
+    # create empty tile list
+    data = []
+    for row in range(ROWS):
+        r = [-1] * COLS
+        data.append(r)
+    return data
 
 
 # damage text class
@@ -164,6 +167,52 @@ class DamageText(pygame.sprite.Sprite):
             self.kill()
 
 
+# class for handling screen fade
+class ScreenFade:
+    def __init__(self, direction, colour, speed):
+        self.direction = direction
+        self.colour = colour
+        self.speed = speed
+        self.fade_counter = 0
+
+    def fade(self):
+        fade_complete = False
+        self.fade_counter += self.speed
+        if self.direction == 1:
+            pygame.draw.rect(screen, self.colour,
+                             (0 - self.fade_counter, 0, SCREEN_WIDTH // 2,
+                              SCREEN_HEIGHT))
+            pygame.draw.rect(screen, self.colour,
+                             (SCREEN_WIDTH // 2 + self.fade_counter, 0,
+                              SCREEN_WIDTH, SCREEN_HEIGHT))
+            pygame.draw.rect(screen, self.colour, (0, 0 - self.fade_counter,
+                                                   SCREEN_WIDTH,
+                                                   SCREEN_HEIGHT // 2))
+            pygame.draw.rect(screen, self.colour, (0, SCREEN_HEIGHT // 2 +
+                                                   self.fade_counter,
+                                                   SCREEN_WIDTH,
+                                                   SCREEN_HEIGHT))
+
+        if self.fade_counter >= SCREEN_WIDTH:
+            fade_complete = True
+        return fade_complete
+
+
+# create empty tile list
+world_data = []
+for row in range(ROWS):
+    r = [-1] * COLS
+    world_data.append(r)
+# load level data and create wotld
+with open(f"levels/level{level}_data.csv", newline="") as csvfile:
+    reader = csv.reader(csvfile, delimiter=",")
+    for x, row in enumerate(reader):
+        for y, tile in enumerate(row):
+            world_data[x][y] = int(tile)
+
+world = World()
+world.process_data(world_data, tile_list, item_images, mob_animations)
+
 # create player
 player = world.player
 # create player's weapon
@@ -176,12 +225,16 @@ enemy_list = world.character_list
 damage_text_group = pygame.sprite.Group()
 arrow_group = pygame.sprite.Group()
 item_group = pygame.sprite.Group()
+fireball_group = pygame.sprite.Group()
 
 score_coin = Item(SCREEN_WIDTH - 115, 23, 0, coin_images, True)
 item_group.add(score_coin)
 # add the items from the level data
 for item in world.item_list:
     item_group.add(item)
+
+# create screen fades
+intro_fade = ScreenFade(1, BLACK, 4)
 
 # main game loop
 run = True
@@ -192,38 +245,46 @@ while run:
 
     screen.fill(BG)
 
-    # calculate player movement
-    dx = 0
-    dy = 0
-    if moving_right == True:
-        dx = SPEED
-    if moving_left == True:
-        dx = -SPEED
-    if moving_up == True:
-        dy = -SPEED
-    if moving_down == True:
-        dy = SPEED
+    if player.alive:
+        # calculate player movement
+        dx = 0
+        dy = 0
+        if moving_right == True:
+            dx = SPEED
+        if moving_left == True:
+            dx = -SPEED
+        if moving_up == True:
+            dy = -SPEED
+        if moving_down == True:
+            dy = SPEED
 
-    # move player
-    screen_scroll = player.move(dx, dy, world.obstacle_tiles)
+        # move player
+        screen_scroll, level_complete = player.move(dx, dy, world.obstacle_tiles,
+                                                world.exit_tile)
 
-    # update all objects
-    world.update(screen_scroll)
-    for enemy in enemy_list:
-        enemy.ai(screen_scroll)
-        enemy.update()
-    player.update()
-    arrow = bow.update(player)
-    if arrow:
-        arrow_group.add(arrow)
-    for arrow in arrow_group:
-        damage, damage_pos = arrow.update(screen_scroll, enemy_list)
-        if damage:
-            damage_text = DamageText(damage_pos.centerx, damage_pos.y,
-                                     str(damage), RED)
-            damage_text_group.add(damage_text)
-    damage_text_group.update()
-    item_group.update(screen_scroll, player)
+        # update all objects
+        world.update(screen_scroll)
+        for enemy in enemy_list:
+            fireball = enemy.ai(player, world.obstacle_tiles, screen_scroll,
+                                fireball_image)
+            if fireball:
+                fireball_group.add(fireball)
+            if enemy.alive:
+                enemy.update()
+        player.update()
+        arrow = bow.update(player)
+        if arrow:
+            arrow_group.add(arrow)
+        for arrow in arrow_group:
+            damage, damage_pos = arrow.update(screen_scroll, world.obstacle_tiles,
+                                              enemy_list)
+            if damage:
+                damage_text = DamageText(damage_pos.centerx, damage_pos.y,
+                                         str(damage), RED)
+                damage_text_group.add(damage_text)
+        damage_text_group.update()
+        fireball_group.update(screen_scroll, player)
+        item_group.update(screen_scroll, player)
 
     # draw player on screen
     world.draw(screen)
@@ -233,10 +294,44 @@ while run:
     bow.draw(screen)
     for arrow in arrow_group:
         arrow.draw(screen)
+    for fireball in fireball_group:
+        fireball.draw(screen)
     damage_text_group.draw(screen)
     item_group.draw(screen)
     draw_info()
     score_coin.draw(screen)
+
+    # check level complete
+    if level_complete == True:
+        start_intro = True
+        level += 1
+        world_data = reset_level()
+        # load level data and create wotld
+        with open(f"levels/level{level}_data.csv", newline="") as csvfile:
+            reader = csv.reader(csvfile, delimiter=",")
+            for x, row in enumerate(reader):
+                for y, tile in enumerate(row):
+                    world_data[x][y] = int(tile)
+        world = World()
+        world.process_data(world_data, tile_list, item_images, mob_animations)
+        temp_health = player.health
+        temp_score = player.score
+        player = world.player
+        player.health = temp_health
+        player.score = temp_score
+        enemy_list = world.character_list
+        score_coin = Item(SCREEN_WIDTH - 115, 23, 0, coin_images, True)
+        item_group.add(score_coin)
+        # add the items for the level data
+        for item in world.item_list:
+            item_group.add(item)
+
+    # show intro
+    if start_intro == True:
+        if intro_fade.fade():
+            start_intro = False
+            intro_fade.fade_counter = 0
+
     # event handler
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
