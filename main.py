@@ -12,7 +12,7 @@ mixer.init()
 pygame.init()
 
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Dungeon Crawler")
+pygame.display.set_caption("Dungeon Crawler 1.0")
 
 # clock for maintaining frame rate
 clock = pygame.time.Clock()
