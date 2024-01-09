@@ -178,7 +178,7 @@ class ScreenFade:
     def fade(self):
         fade_complete = False
         self.fade_counter += self.speed
-        if self.direction == 1:
+        if self.direction == 1:  # whole screen fade
             pygame.draw.rect(screen, self.colour,
                              (0 - self.fade_counter, 0, SCREEN_WIDTH // 2,
                               SCREEN_HEIGHT))
@@ -192,6 +192,9 @@ class ScreenFade:
                                                    self.fade_counter,
                                                    SCREEN_WIDTH,
                                                    SCREEN_HEIGHT))
+        elif self.direction == 2:  # vertical screen fade down
+            pygame.draw.rect(screen, self.colour,
+                             (0, 0, SCREEN_WIDTH, 0 + self.fade_counter))
 
         if self.fade_counter >= SCREEN_WIDTH:
             fade_complete = True
@@ -235,6 +238,7 @@ for item in world.item_list:
 
 # create screen fades
 intro_fade = ScreenFade(1, BLACK, 4)
+death_fade = ScreenFade(2, PINK, 4)
 
 # main game loop
 run = True
@@ -259,8 +263,9 @@ while run:
             dy = SPEED
 
         # move player
-        screen_scroll, level_complete = player.move(dx, dy, world.obstacle_tiles,
-                                                world.exit_tile)
+        screen_scroll, level_complete = player.move(dx, dy,
+                                                    world.obstacle_tiles,
+                                                    world.exit_tile)
 
         # update all objects
         world.update(screen_scroll)
@@ -276,7 +281,8 @@ while run:
         if arrow:
             arrow_group.add(arrow)
         for arrow in arrow_group:
-            damage, damage_pos = arrow.update(screen_scroll, world.obstacle_tiles,
+            damage, damage_pos = arrow.update(screen_scroll,
+                                              world.obstacle_tiles,
                                               enemy_list)
             if damage:
                 damage_text = DamageText(damage_pos.centerx, damage_pos.y,
@@ -331,6 +337,31 @@ while run:
         if intro_fade.fade():
             start_intro = False
             intro_fade.fade_counter = 0
+
+    # show death screen
+    if player.alive == False:
+        if death_fade.fade():
+            death_fade.fade_counter = 0
+            start_intro = True
+            world_data = reset_level()
+            # load level data and create wotld
+            with open(f"levels/level{level}_data.csv", newline="") as csvfile:
+                reader = csv.reader(csvfile, delimiter=",")
+                for x, row in enumerate(reader):
+                    for y, tile in enumerate(row):
+                        world_data[x][y] = int(tile)
+            world = World()
+            world.process_data(world_data, tile_list, item_images,
+                               mob_animations)
+            temp_score = player.score
+            player = world.player
+            player.score = temp_score
+            enemy_list = world.character_list
+            score_coin = Item(SCREEN_WIDTH - 115, 23, 0, coin_images, True)
+            item_group.add(score_coin)
+            # add the items for the level data
+            for item in world.item_list:
+                item_group.add(item)
 
     # event handler
     for event in pygame.event.get():
